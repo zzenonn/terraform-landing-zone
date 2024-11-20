@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Budget with Notifications at 25% increments with Parameterized Amount and Single Subscriber"
+
+Metadata:
+  Version: "1.0.0"
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Budget Configuration"
+        Parameters:
+          - BudgetName
+          - BudgetAmount
+      - Label:
+          default: "Notification Configuration"
+        Parameters:
+          - SubscriberEmail
+    ParameterLabels:
+      BudgetName:
+        default: "Budget Name"
+      BudgetAmount:
+        default: "Budget Amount (USD)"
+      SubscriberEmail:
+        default: "Subscriber Email Address"
+
+Parameters:
+  BudgetName:
+    Type: String
+    Default: "ExampleProjectName"
+    Description: "The name of this budget. Recommend to use the project name."
+
+  BudgetAmount:
+    Type: Number
+    Default: 100
+    Description: "The total budget amount in USD."
+
+  SubscriberEmail:
+    Type: String
+    Default: "example@novare.com.hk"
+    Description: "The email address to receive notifications."
+
+Resources:
+  ProjectBudget:
+    Type: "AWS::Budgets::Budget"
+    Properties:
+      Budget:
+        BudgetName: !Ref BudgetName
+        BudgetLimit:
+          Amount: !Ref BudgetAmount
+          Unit: USD
+        TimeUnit: MONTHLY
+        CostTypes:
+          IncludeTax: true
+          IncludeSubscription: true
+          UseBlended: false
+          IncludeRefund: true
+          IncludeCredit: false
+          IncludeUpfront: true
+          IncludeRecurring: true
+          IncludeOtherSubscription: true
+          IncludeSupport: true
+          IncludeDiscount: false
+        BudgetType: COST
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 25
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref SubscriberEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 50
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref SubscriberEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 75
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref SubscriberEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref SubscriberEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 125
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref SubscriberEmail
+
+Outputs:
+  BudgetId:
+    Value: !Ref ProjectBudget
+    Description: The ID of the created budget

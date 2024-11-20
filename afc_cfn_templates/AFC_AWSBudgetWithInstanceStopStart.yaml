@@ -1,0 +1,426 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Combined template for Budget with Notifications and Lambda Automation for EC2 instances."
+
+Metadata:
+  Version: "1.0.0"
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Budget Configuration"
+        Parameters:
+          - BudgetName
+          - BudgetAmount
+      - Label:
+          default: "Notification Configuration"
+        Parameters:
+          - SubscriberEmail
+      - Label:
+          default: "EC2 Automation Configuration"
+        Parameters:
+          - ResourceGroupName
+          - ResourceGroupKey
+          - ResourceGroupValue
+          - StopInstanceCron
+          - StartInstanceCron
+          - PythonRuntime
+    ParameterLabels:
+      BudgetName:
+        default: "Budget Name"
+      BudgetAmount:
+        default: "Budget Amount (USD)"
+      SubscriberEmail:
+        default: "Subscriber Email Address"
+      ResourceGroupName:
+        default: "Resource Group Name"
+      ResourceGroupKey:
+        default: "Resource Group Key"
+      ResourceGroupValue:
+        default: "Resource Group Value"
+      StopInstanceCron:
+        default: "Stop Instance Cron Expression"
+      StartInstanceCron:
+        default: "Start Instance Cron Expression"
+      PythonRuntime:
+        default: "Lambda Python Runtime"
+
+Parameters:
+  BudgetName:
+    Type: String
+    Default: "ExampleProjectName"
+    Description: "The name of this budget. Recommend to use the project name."
+
+  BudgetAmount:
+    Type: Number
+    Default: 100
+    Description: "The total budget amount in USD."
+
+  SubscriberEmail:
+    Type: String
+    Default: "example@novare.com.hk"
+    Description: "The email address to receive notifications."
+
+  ResourceGroupName:
+    Type: String
+    Description: Name of resource groups to start/stop
+    Default: NonProdInstances
+
+  ResourceGroupKey:
+    Type: String
+    Description: Key of resource groups to start/stop
+    Default: Type
+
+  ResourceGroupValue:
+    Type: String
+    Description: Value of resource groups to start/stop
+    Default: NonProd
+
+  StopInstanceCron:
+    Type: String
+    Description: Cron expression for when to stop your instances. Must be in UTC format (eg. the default value is 8pm UTC+8). 
+    Default: 0 12 ? * * *
+
+  StartInstanceCron:
+    Type: String
+    Description: Cron expression for when to start your instances. Must be in UTC format (eg. the default value is 8am UTC+8). 
+    Default: 0 0 ? * * *
+
+  PythonRuntime:
+    Type: String
+    Description: Lambda runtime for the function. Must start with "python3".
+    Default: python3.12
+    AllowedPattern: ^python3\.\d+$
+    ConstraintDescription: "The runtime must be a Python 3.x version."
+
+Resources:
+  ProjectBudget:
+    Type: "AWS::Budgets::Budget"
+    Properties:
+      Budget:
+        BudgetName: !Ref BudgetName
+        BudgetLimit:
+          Amount: !Ref BudgetAmount
+          Unit: USD
+        TimeUnit: MONTHLY
+        CostTypes:
+          IncludeTax: true
+          IncludeSubscription: true
+          UseBlended: false
+          IncludeRefund: true
+          IncludeCredit: false
+          IncludeUpfront: true
+          IncludeRecurring: true
+          IncludeOtherSubscription: true
+          IncludeSupport: true
+          IncludeDiscount: false
+        BudgetType: COST
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 25
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref SubscriberEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 50
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref SubscriberEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 75
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref SubscriberEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref SubscriberEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 125
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref SubscriberEmail
+
+  TagBasedGroupToStartAndStop:
+    Type: "AWS::ResourceGroups::Group"
+    Properties:
+      Name: !Ref ResourceGroupName
+      Description: "A group that is based on a tag query"
+      ResourceQuery:
+        Type: "TAG_FILTERS_1_0"
+        Query:
+          ResourceTypeFilters: 
+            - "AWS::EC2::Instance" 
+          TagFilters:
+            - Key: !Ref ResourceGroupKey
+              Values: 
+                - !Ref ResourceGroupValue
+
+  Ec2AutomationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+
+  LambdaAutomation:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: LambdaAutomationPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - ec2:StartInstances
+          - ec2:StopInstances
+          Resource: '*'
+        - Effect: Allow
+          Action:
+          - ssm:*
+          - sts:*
+          Resource: '*'
+        - Effect: Allow
+          Action:
+          - sts:*
+          Resource:
+            Fn::GetAtt:
+            - SsmAutomationRole
+            - Arn
+      Roles:
+      - Ref: Ec2AutomationRole
+
+  SsmAutomationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+            - ssm.amazonaws.com
+            - ec2.amazonaws.com
+            AWS:
+            - Fn::GetAtt:
+              - Ec2AutomationRole
+              - Arn
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole
+      - arn:aws:iam::aws:policy/ResourceGroupsandTagEditorReadOnlyAccess
+
+  StartEc2Instance:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Placeholder function to start EC2 instances.
+      Runtime: !Ref PythonRuntime
+      MemorySize: 128
+      Timeout: 30
+      Environment:
+        Variables:
+          AWS_ACCOUNT: !Ref AWS::AccountId
+          AWS_REGIONS: !Ref AWS::Region
+          RESOURCE_GROUP: !Ref ResourceGroupName
+          SSM_ROLE: !Ref SsmAutomationRole
+      Handler: index.lambda_handler
+      Role:
+        Fn::GetAtt:
+        - Ec2AutomationRole
+        - Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+
+          region = os.environ['AWS_REGION']
+          resource_group = os.environ['RESOURCE_GROUP']
+          aws_account = os.environ['AWS_ACCOUNT']
+          ssm_role = os.environ['SSM_ROLE']
+
+          def lambda_handler(event, context):
+              
+              client = boto3.client('ssm')
+              
+              response = client.start_automation_execution(
+                  DocumentName='AWS-StartEC2Instance',
+                  DocumentVersion='$DEFAULT',
+                  TargetParameterName='InstanceId',
+                  Targets=[
+                      {
+                          'Key': 'ResourceGroup',
+                          'Values': [
+                              resource_group,
+                          ]
+                      },
+                  ],
+                  MaxConcurrency='100%',
+                  MaxErrors='2',
+                  TargetLocations=[
+                  {
+                      'Accounts': [
+                          aws_account,
+                      ],
+                      'Regions': [
+                          region,
+                      ],
+                      'TargetLocationMaxConcurrency': '100%',
+                      'TargetLocationMaxErrors': '2',
+                      'ExecutionRoleName': ssm_role
+                  }
+                  ]
+              )
+
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Instances started successfully!')
+                }
+
+  StopEc2Instance:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Function to stop EC2 instances using SSM automation.
+      Runtime: !Ref PythonRuntime
+      MemorySize: 128
+      Timeout: 30
+      Environment:
+        Variables:
+          AWS_ACCOUNT: !Ref AWS::AccountId
+          AWS_REGIONS: !Ref AWS::Region
+          RESOURCE_GROUP: !Ref ResourceGroupName
+          SSM_ROLE: !Ref SsmAutomationRole
+      Handler: index.lambda_handler
+      Role:
+        Fn::GetAtt:
+        - Ec2AutomationRole
+        - Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+
+          region = os.environ['AWS_REGION']
+          resource_group = os.environ['RESOURCE_GROUP']
+          aws_account = os.environ['AWS_ACCOUNT']
+          ssm_role = os.environ['SSM_ROLE']
+
+          def lambda_handler(event, context):
+              
+              client = boto3.client('ssm')
+              
+              response = client.start_automation_execution(
+                  DocumentName='AWS-StopEC2Instance',
+                  DocumentVersion='$DEFAULT',
+                  TargetParameterName='InstanceId',
+                  Targets=[
+                      {
+                          'Key': 'ResourceGroup',
+                          'Values': [
+                              resource_group,
+                          ]
+                      },
+                  ],
+                  MaxConcurrency='100%',
+                  MaxErrors='2',
+                  TargetLocations=[
+                  {
+                      'Accounts': [
+                          aws_account,
+                      ],
+                      'Regions': [
+                          region,
+                      ],
+                      'TargetLocationMaxConcurrency': '100%',
+                      'TargetLocationMaxErrors': '2',
+                      'ExecutionRoleName': ssm_role
+                  }
+                  ]
+              )
+
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Instances stopped successfully!')
+              }
+
+  StopInstanceRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: ScheduledRule
+      ScheduleExpression:
+        Fn::Sub: cron(${StopInstanceCron})
+      State: ENABLED
+      Targets:
+      - Arn:
+          Fn::GetAtt:
+          - StopEc2Instance
+          - Arn
+        Id: StopDemoInstances
+
+  PermissionForEventsToInvokeStop:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref StopEc2Instance
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+        - StopInstanceRule
+        - Arn
+
+  StartInstanceRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Runs automated scripts in the morning.
+      ScheduleExpression:
+        Fn::Sub: cron(${StartInstanceCron})
+      State: ENABLED
+      Targets:
+      - Arn:
+          Fn::GetAtt:
+          - StartEc2Instance
+          - Arn
+        Id: StartDemoInstances
+
+  PermissionForEventsToInvokeStart:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref StartEc2Instance
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+        - StartInstanceRule
+        - Arn
+
+Outputs:
+  BudgetId:
+    Value: !Ref ProjectBudget
+    Description: The ID of the created budget
+
+  ResourceGroupNameOutput:
+    Value: !Ref ResourceGroupName
+    Description: The name of the resource group created for EC2 automation.

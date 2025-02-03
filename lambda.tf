@@ -20,12 +20,21 @@ resource "aws_iam_role" "lambda_directory_admin_role" {
       }
     ]
   })
+}
 
-  managed_policy_arns = [
-    "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-    "arn:aws:iam::aws:policy/AWSSSODirectoryAdministrator",
-    "${aws_iam_policy.sso_create_account_assignment_policy.arn}"
-  ]
+resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
+  role       = aws_iam_role.lambda_directory_admin_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_sso_directory_admin" {
+  role       = aws_iam_role.lambda_directory_admin_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSSSODirectoryAdministrator"
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_sso_account_assignment" {
+  role       = aws_iam_role.lambda_directory_admin_role.name
+  policy_arn = aws_iam_policy.sso_create_account_assignment_policy.arn
 }
 
 # Create a custom IAM policy that allows the sso:CreateAccountAssignment action for managing permission sets

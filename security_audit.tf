@@ -106,7 +106,6 @@ resource "aws_securityhub_finding_aggregator" "security_hub_agg" {
 
 resource "aws_securityhub_organization_configuration" "security_hub_config" {
   provider              = aws.security_account
-  auto_enable           = false
   auto_enable_standards = "NONE"
   organization_configuration {
     configuration_type = "CENTRAL"

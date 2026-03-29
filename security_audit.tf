@@ -3,7 +3,7 @@
 ####################################
 
 resource "aws_guardduty_detector" "guard_duty_main" {
-  enable = true
+  status = "ENABLED"
 }
 
 resource "aws_guardduty_organization_admin_account" "guard_duty_delegated_administrator" {
@@ -14,7 +14,7 @@ resource "aws_guardduty_organization_admin_account" "guard_duty_delegated_admini
 
 resource "aws_guardduty_detector" "guard_duty_delegated_administrator" {
   provider = aws.security_account
-  enable   = true
+  status   = "ENABLED"
 
   depends_on = [aws_guardduty_organization_admin_account.guard_duty_delegated_administrator]
 }

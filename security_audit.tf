@@ -32,28 +32,31 @@ resource "aws_guardduty_organization_configuration" "guard_duty" {
 
   detector_id = aws_guardduty_detector.guard_duty_delegated_administrator.id
 
-  datasources {
-    # Expensive because of the volume of logs. Enable only if needed
-    s3_logs {
-      auto_enable = false
-    }
-    kubernetes {
-      audit_logs {
-        enable = true
-      }
-    }
-
-    # Expensive. Enable only if needed
-    malware_protection {
-      scan_ec2_instance_with_findings {
-        ebs_volumes {
-          auto_enable = false
-        }
-      }
-    }
-  }
-
   depends_on = [aws_guardduty_organization_admin_account.guard_duty_delegated_administrator]
+}
+
+resource "aws_guardduty_organization_configuration_feature" "s3_logs" {
+  provider    = aws.security_account
+  detector_id = aws_guardduty_detector.guard_duty_delegated_administrator.id
+  name        = "S3_DATA_EVENTS"
+  auto_enable = "NONE"
+  depends_on  = [aws_guardduty_organization_admin_account.guard_duty_delegated_administrator]
+}
+
+resource "aws_guardduty_organization_configuration_feature" "eks_audit_logs" {
+  provider    = aws.security_account
+  detector_id = aws_guardduty_detector.guard_duty_delegated_administrator.id
+  name        = "EKS_AUDIT_LOGS"
+  auto_enable = "ALL"
+  depends_on  = [aws_guardduty_organization_admin_account.guard_duty_delegated_administrator]
+}
+
+resource "aws_guardduty_organization_configuration_feature" "malware_protection" {
+  provider    = aws.security_account
+  detector_id = aws_guardduty_detector.guard_duty_delegated_administrator.id
+  name        = "EBS_MALWARE_PROTECTION"
+  auto_enable = "NONE"
+  depends_on  = [aws_guardduty_organization_admin_account.guard_duty_delegated_administrator]
 }
 
 resource "aws_guardduty_member" "catalog_account" {

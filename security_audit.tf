@@ -35,7 +35,6 @@ resource "aws_guardduty_organization_configuration" "guard_duty" {
   depends_on = [aws_guardduty_organization_admin_account.guard_duty_delegated_administrator]
 }
 
-# Migrated from deprecated datasources block
 resource "aws_guardduty_organization_configuration_feature" "s3_logs" {
   provider    = aws.security_account
   detector_id = aws_guardduty_detector.guard_duty_delegated_administrator.id

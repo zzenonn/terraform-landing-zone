@@ -211,6 +211,7 @@ resource "aws_guardduty_publishing_destination" "centralized_logging" {
   ]
 }
 
+# Managed by automation
 resource "aws_guardduty_organization_configuration_feature" "s3_logs" {
   provider    = aws.security_account
   detector_id = aws_guardduty_detector.guard_duty_delegated_administrator.id

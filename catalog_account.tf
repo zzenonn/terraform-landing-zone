@@ -111,7 +111,7 @@ resource "aws_servicecatalog_product" "afc_products" {
     name                        = lookup(local.afn_templates[each.key]["Metadata"], "Version", "")
     description                 = "version ${lookup(local.afn_templates[each.key]["Metadata"], "Version", "")}"
     type                        = "CLOUD_FORMATION_TEMPLATE"
-    template_url                = "https://${aws_s3_bucket.service_catalog_products.bucket}.s3.${data.aws_region.current.id}.amazonaws.com/cfn-templates/${each.key}"
+    template_url                = "https://${aws_s3_bucket.service_catalog_products.bucket}.s3.${data.aws_region.current.id}.amazonaws.com/cfn-templates/${each.key}" # region ID
     disable_template_validation = false
   }
 }
@@ -160,7 +160,7 @@ resource "aws_servicecatalog_product" "utility_products" {
     name                        = lookup(local.util_templates[each.key]["Metadata"], "Version", "")
     description                 = "version ${lookup(local.util_templates[each.key]["Metadata"], "Version", "")}"
     type                        = "CLOUD_FORMATION_TEMPLATE"
-    template_url                = "https://${aws_s3_bucket.service_catalog_products.bucket}.s3.${data.aws_region.current.id}.amazonaws.com/cfn-templates/${each.key}"
+    template_url                = "https://${aws_s3_bucket.service_catalog_products.bucket}.s3.${data.aws_region.current.id}.amazonaws.com/cfn-templates/${each.key}" # region ID
     disable_template_validation = false
   }
 }
